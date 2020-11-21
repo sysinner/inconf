@@ -62,10 +62,10 @@ func (it *Daemon) conditionAllow(j *JobEntry) bool {
 		return true
 	}
 
+	tn := time.Now().UnixNano() / 1e6
+
 	it.cmu.RLock()
 	defer it.cmu.RUnlock()
-
-	tn := time.Now().UnixNano() / 1e6
 
 	for c, v := range j.job.Spec().Conditions {
 

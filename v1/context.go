@@ -14,8 +14,19 @@
 
 package injob
 
+import (
+	"time"
+)
+
 type Context struct {
 	daemon *Daemon
+}
+
+func (it *Context) ConditionRefresh(name string) *Context {
+	if it.daemon != nil {
+		it.daemon.conditionSet(name, time.Now().UnixNano()/1e6)
+	}
+	return it
 }
 
 func (it *Context) ConditionSet(name string, v int64) *Context {
