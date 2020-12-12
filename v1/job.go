@@ -24,9 +24,17 @@ const (
 	Version = "0.0.1"
 )
 
+const (
+	ActionStart uint64 = 1 << 1
+	ActionStop  uint64 = 1 << 2
+)
+
 type Job interface {
 	Spec() *JobSpec
 	Run(ctx *Context) error
+}
+
+type Status struct {
 }
 
 type JobSpec struct {
@@ -34,15 +42,13 @@ type JobSpec struct {
 	Conditions map[string]int64
 }
 
-type JobStatus struct {
-}
-
 type JobEntry struct {
 	mu      sync.Mutex
 	sch     *Schedule
-	status  int
+	action  uint64
 	job     Job
 	running bool
+	Status  *JobStatus
 }
 
 func NewJobSpec(name string) *JobSpec {
@@ -65,8 +71,9 @@ func NewJobEntry(job Job, sch *Schedule, args ...interface{}) *JobEntry {
 
 	j := &JobEntry{
 		sch:    sch,
-		status: StatusStop,
+		action: ActionStop,
 		job:    job,
+		Status: &JobStatus{},
 	}
 
 	for _, arg := range args {
@@ -92,9 +99,13 @@ func (it *JobEntry) exec(ctx *Context) {
 		it.running = false
 	}()
 
+	log := newJobExecLog()
+
 	if err := it.job.Run(ctx); err != nil {
 		hlog.Printf("warn", "job %s err %s", it.job.Spec().Name, err.Error())
+		log.ER(err.Error())
 	} else {
+		log.OK()
 		// hlog.Printf("debug", "job %s well done in %v", it.job.Spec().Name, time.Since(tn))
 		if it.sch.onBoot && !it.sch.onBootDone {
 			it.sch.onBootDone = true
@@ -102,6 +113,8 @@ func (it *JobEntry) exec(ctx *Context) {
 				it.job.Spec().Name)
 		}
 	}
+
+	it.Status.LogSync(log)
 
 	it.running = false
 }
@@ -111,6 +124,6 @@ func (it *JobEntry) Schedule() *Schedule {
 }
 
 func (it *JobEntry) Commit() *JobEntry {
-	it.status = StatusOK
+	it.action = ActionStart
 	return it
 }

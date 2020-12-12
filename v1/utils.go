@@ -14,6 +14,14 @@
 
 package injob
 
+import (
+	"time"
+)
+
 func u64Allow(opbase, op uint64) bool {
 	return (op & opbase) == op
+}
+
+func timenow() int64 {
+	return time.Now().UnixNano() / 1e6
 }

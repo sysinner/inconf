@@ -174,6 +174,7 @@ func (it *Schedule) EveryTimeCycle(opt int, in uint) *Schedule {
 
 		it.times[i] = fv
 		i++
+
 	}
 
 	for ; i < len(scheduleTimeFields); i++ {
@@ -206,4 +207,78 @@ func (it *Schedule) Hit(times [6]uint64) bool {
 	}
 
 	return hit == len(scheduleTimeFields)
+}
+
+func (it *Schedule) NextTime() int64 {
+
+	if it.onBoot && !it.onBootDone {
+		return 0
+	}
+
+	var (
+		tn                         = time.Now()
+		st                         = scheduleTime(tn)
+		wday                       = -1
+		month, day, hour, min, sec int
+		offset                     = 6
+	)
+
+	for i, t := range it.times {
+
+		v := scheduleTimeFields[i]
+
+		reset := -1
+
+		for j := v.min; j <= v.max; j++ {
+			if !u64Allow(t, 1<<j) {
+				continue
+			}
+			if (i == 5) ||
+				(i > offset && (1<<j) >= st[i]) ||
+				(i < offset && (1<<j) > st[i]) {
+				reset = int(j)
+				break
+			}
+		}
+
+		if reset == -1 {
+			continue
+		}
+
+		offset = i
+
+		switch i {
+		case 0:
+			sec = reset
+
+		case 1:
+			min = reset
+
+		case 2:
+			hour = reset
+
+		case 3:
+			day = reset
+
+		case 4:
+			month = reset
+
+		case 5:
+			day = tn.Day()
+			month = int(tn.Month())
+			wday = reset
+		}
+	}
+
+	nx := time.Date(tn.Year(), time.Month(month), day,
+		hour, min, sec, 0, tn.Location())
+
+	if wday != -1 {
+		nx = nx.AddDate(0, 0, wday-int(tn.Weekday()))
+		if nx.Unix() < tn.Unix() {
+			nx = nx.AddDate(0, 0, 7)
+		}
+	}
+
+	return (nx.Unix() * 1e3)
 }

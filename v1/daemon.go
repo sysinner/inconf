@@ -15,6 +15,7 @@
 package injob
 
 import (
+	"fmt"
 	"sync"
 	"time"
 )
@@ -43,7 +44,7 @@ func (it *Daemon) Commit(j *JobEntry) *JobEntry {
 
 	for _, v := range it.jobs {
 		if v.job.Spec().Name == j.job.Spec().Name {
-			v.status = StatusOK
+			v.action = ActionStart
 			if j.sch != nil {
 				v.sch = j.sch
 			}
@@ -119,6 +120,46 @@ func (it *Daemon) Start() {
 			go j.exec(ctx)
 		}
 	}
+}
+
+type DaemonBriefReportJob struct {
+	Name    string `json:"name" toml:"name"`
+	Message string `json:"message" toml:"message"`
+}
+
+type DaemonBriefReport struct {
+	Jobs []*DaemonBriefReportJob `json:"jobs" toml:"jobs"`
+}
+
+func (it *Daemon) BriefReport() *DaemonBriefReport {
+	rs := &DaemonBriefReport{}
+	for _, j := range it.jobs {
+		if j.action != ActionStart {
+			continue
+		}
+		str := fmt.Sprintf("exec %d times", j.Status.ExecNum)
+		if log := j.Status.LastLog(); log != nil {
+			str += fmt.Sprintf(", last at %s in %d ms",
+				time.Unix(log.Created/1e3, (log.Created%1e3)*1e6).Format("2006-01-02 15:04:05.999"),
+				log.Updated-log.Created)
+			if log.Status == StatusOK {
+				str += ", status ok"
+			} else {
+				str += ", status err"
+				if log.Message != "" {
+					str += ": " + log.Message
+				}
+			}
+		}
+		if next := j.sch.NextTime(); next > 0 {
+			str += ", next " + time.Unix(next/1e3, 0).Format("2006-01-02 15:04:05")
+		}
+		rs.Jobs = append(rs.Jobs, &DaemonBriefReportJob{
+			Name:    j.job.Spec().Name,
+			Message: str,
+		})
+	}
+	return rs
 }
 
 func (it *Daemon) conditionSet(name string, v int64) {
