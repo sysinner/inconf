@@ -102,7 +102,7 @@ func (it *JobEntry) exec(ctx *Context) {
 	log := newJobExecLog()
 
 	if err := it.job.Run(ctx); err != nil {
-		hlog.Printf("warn", "job %s err %s", it.job.Spec().Name, err.Error())
+		hlog.SlotPrint(600, "warn", "job %s err %s", it.job.Spec().Name, err.Error())
 		log.ER(err.Error())
 	} else {
 		log.OK()
