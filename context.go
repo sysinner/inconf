@@ -22,6 +22,10 @@ type Context struct {
 	daemon *Daemon
 }
 
+func (it *Context) Quit() bool {
+	return it.daemon.stop
+}
+
 func (it *Context) ConditionRefresh(name string) *Context {
 	if it.daemon != nil {
 		it.daemon.conditionSet(name, time.Now().UnixNano()/1e6)

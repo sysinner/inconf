@@ -26,6 +26,7 @@ type Daemon struct {
 	jobs       []*JobEntry
 	running    bool
 	conditions map[string]int64
+	stop       bool
 }
 
 func NewDaemon(args ...interface{}) (*Daemon, error) {
@@ -85,6 +86,11 @@ func (it *Daemon) conditionAllow(j *JobEntry) bool {
 	return false
 }
 
+func (it *Daemon) Stop() {
+	it.stop = true
+	time.Sleep(200e6)
+}
+
 func (it *Daemon) Start() {
 
 	it.mu.Lock()
@@ -102,7 +108,7 @@ func (it *Daemon) Start() {
 		daemon: it,
 	}
 
-	for {
+	for !it.stop {
 
 		tn := <-tr.C
 		st := scheduleTime(tn)
